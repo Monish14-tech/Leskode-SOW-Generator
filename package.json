@@ -1,0 +1,13 @@
+{
+  "name": "scopepilot-ai-workspace",
+  "version": "1.0.0",
+  "description": "ScopePilot AI - Automated SOW Generator & Zoho Implementation Platform",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix frontend run build",
+    "backend": "powershell -NoExit -Command \"cd backend; python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload\"",
+    "start": "powershell -Command \"Start-Process powershell -ArgumentList 'npm --prefix frontend run dev'; cd backend; python -m uvicorn app.main:app --host 127.0.0.1 --port 8000\""
+  }
+}

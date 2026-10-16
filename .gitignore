@@ -1,0 +1,65 @@
+# Environment & Secrets
+.env
+*.env
+backend/.env
+!.env.example
+!backend/.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+scopepilot_dev.db
+backend/scopepilot_dev.db
+
+# User Uploads and Generated SOW Outputs (preserve .gitkeep)
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/sow_outputs/*
+!backend/sow_outputs/.gitkeep
+
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
+
+# IDE / OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
