@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import {
   FileText, CheckSquare, Layers, ListTodo, Zap, HelpCircle,
   ShieldAlert, CheckCircle2, Download, RefreshCw, Upload,
-  Plus, ChevronRight, AlertTriangle, ArrowLeft, Eye, Edit3, Check
+  Plus, ChevronRight, AlertTriangle, ArrowLeft, Eye, Edit3, Check, Trash2
 } from 'lucide-react'
 import { api } from '../api'
 import type {
@@ -451,6 +451,23 @@ The objective is to deploy an end-to-end connected Zoho ecosystem connecting cus
       setActiveTab('sow')
     } catch (err: any) {
       showNotice(err.response?.data?.detail || 'SOW generation failed', true)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // 10. Delete SOW DOCX
+  const handleDeleteSow = async (sowId: string) => {
+    if (!window.confirm('Are you sure you want to delete this generated SOW document?')) {
+      return
+    }
+    setActionLoading(true)
+    try {
+      await api.deleteSow(project.id, sowId)
+      setSowDocs((prev) => prev.filter((d) => d.id !== sowId))
+      showNotice('SOW document deleted successfully!')
+    } catch (err: any) {
+      showNotice(err.response?.data?.detail || 'Failed to delete SOW document', true)
     } finally {
       setActionLoading(false)
     }
@@ -1516,7 +1533,7 @@ The objective is to deploy an end-to-end connected Zoho ecosystem connecting cus
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2">
                       <a
                         href={api.getSowDownloadUrl(project.id, doc.id)}
                         download
@@ -1525,6 +1542,14 @@ The objective is to deploy an end-to-end connected Zoho ecosystem connecting cus
                         <Download className="w-3.5 h-3.5" />
                         <span>Download .DOCX</span>
                       </a>
+                      <button
+                        onClick={() => handleDeleteSow(doc.id)}
+                        disabled={actionLoading}
+                        title="Delete SOW document"
+                        className="p-2 bg-red-950/40 hover:bg-red-900/60 text-red-400 hover:text-red-200 border border-red-800/50 rounded-xl transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 ))

@@ -240,12 +240,13 @@ def get_active_template(
     return {"active": True, "version": _version_dict(version)}
 
 
-@router.delete("/{template_id}", status_code=204)
+@router.delete("/{template_id}")
 def delete_template(
     template_id: str,
     current_user: UserProfile = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Delete a master template, clear foreign key references, and delete files from disk."""
     template = db.query(SowTemplate).filter(
         SowTemplate.id == template_id,
         SowTemplate.organization_id == current_user.organization_id,
@@ -253,10 +254,49 @@ def delete_template(
     if not template:
         raise HTTPException(404, "Template not found.")
 
-    # Delete files
-    for version in template.versions:
-        if version.storage_path and os.path.exists(version.storage_path):
-            os.remove(version.storage_path)
+    version_ids = [v.id for v in (template.versions or [])]
+    if version_ids:
+        # Clear foreign key references on projects and sow_documents
+        from app.db.models import Project, SowDocument
+        db.query(Project).filter(Project.active_template_id.in_(version_ids)).update(
+            {"active_template_id": None}, synchronize_session=False
+        )
+        db.query(SowDocument).filter(SowDocument.template_version_id.in_(version_ids)).update(
+            {"template_version_id": None}, synchronize_session=False
+        )
+
+    # Delete physical files
+    backend_base = Path(__file__).resolve().parent.parent.parent
+    for version in (template.versions or []):
+        if version.storage_path:
+            candidates = [
+                Path(version.storage_path),
+                backend_base / version.storage_path,
+                backend_base / "templates" / Path(version.storage_path).name,
+            ]
+            for c in candidates:
+                # Do not delete the fallback seeded master template from disk
+                if c.exists() and c.is_file() and "Leskode_Master_SOW_Template.docx" not in c.name:
+                    try:
+                        os.remove(c)
+                        logger.info(f"Removed template file: {c}")
+                    except Exception as e:
+                        logger.warning(f"Failed to remove template file {c}: {e}")
+
+    was_active = any(v.status == TemplateStatus.ACTIVE for v in (template.versions or []))
 
     db.delete(template)
     db.commit()
+
+    # If the active template was deleted, activate the most recent available template version if any
+    if was_active:
+        remaining_version = db.query(SowTemplateVersion).join(
+            SowTemplate, SowTemplateVersion.template_id == SowTemplate.id
+        ).filter(
+            SowTemplate.organization_id == current_user.organization_id,
+        ).order_by(SowTemplateVersion.created_at.desc()).first()
+        if remaining_version:
+            remaining_version.status = TemplateStatus.ACTIVE
+            db.commit()
+
+    return {"message": "Master template deleted successfully", "deleted_id": template_id}

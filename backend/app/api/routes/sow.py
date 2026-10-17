@@ -487,3 +487,42 @@ def preview_sow(
         "unresolved_placeholders": doc.unresolved_placeholders or [],
         "generated_at": doc.generated_at.isoformat() if doc.generated_at else None,
     }
+
+
+@router.delete("/{project_id}/{sow_id}")
+def delete_sow_document(
+    project_id: str,
+    sow_id: str,
+    current_user: UserProfile = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a generated SOW document and remove its stored file from disk."""
+    require_project_access(project_id, current_user, db)
+    doc = db.query(SowDocument).filter(
+        SowDocument.id == sow_id,
+        SowDocument.project_id == project_id,
+    ).first()
+
+    if not doc:
+        raise HTTPException(404, "SOW document not found")
+
+    # Remove docx file from disk if present
+    if doc.docx_storage_path and os.path.exists(doc.docx_storage_path):
+        try:
+            os.remove(doc.docx_storage_path)
+            logger.info(f"Removed SOW docx file: {doc.docx_storage_path}")
+        except Exception as e:
+            logger.warning(f"Failed to remove SOW docx file {doc.docx_storage_path}: {e}")
+
+    # Remove pdf file from disk if present
+    if doc.pdf_storage_path and os.path.exists(doc.pdf_storage_path):
+        try:
+            os.remove(doc.pdf_storage_path)
+            logger.info(f"Removed SOW pdf file: {doc.pdf_storage_path}")
+        except Exception as e:
+            logger.warning(f"Failed to remove SOW pdf file {doc.pdf_storage_path}: {e}")
+
+    db.delete(doc)
+    db.commit()
+
+    return {"message": "SOW document deleted successfully", "deleted_id": sow_id}

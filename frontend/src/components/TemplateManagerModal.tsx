@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { X, Upload, LayoutTemplate, CheckCircle2, AlertTriangle, FileCode } from 'lucide-react'
+import { X, Upload, LayoutTemplate, CheckCircle2, AlertTriangle, FileCode, Trash2 } from 'lucide-react'
 import { api } from '../api'
 import type { SowTemplateItem } from '../types'
 
@@ -62,6 +62,23 @@ export const TemplateManagerModal: React.FC<TemplateManagerModalProps> = ({
       await loadTemplates()
     } catch (err: any) {
       setMsg({ text: err.response?.data?.detail || 'Failed to activate template.', isError: true })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteTemplate = async (templateId: string, templateName: string) => {
+    if (!window.confirm(`Are you sure you want to delete the master template "${templateName}"?`)) {
+      return
+    }
+    setLoading(true)
+    setMsg(null)
+    try {
+      await api.deleteTemplate(templateId)
+      setMsg({ text: `Master template "${templateName}" deleted successfully.` })
+      await loadTemplates()
+    } catch (err: any) {
+      setMsg({ text: err.response?.data?.detail || 'Failed to delete template.', isError: true })
     } finally {
       setLoading(false)
     }
@@ -227,15 +244,25 @@ export const TemplateManagerModal: React.FC<TemplateManagerModalProps> = ({
                       )}
                     </div>
 
-                    {!isActive && versionToActivate && (
+                    <div className="flex items-center space-x-2 shrink-0">
+                      {!isActive && versionToActivate && (
+                        <button
+                          onClick={() => handleSetActive(versionToActivate, tpl.name)}
+                          disabled={loading}
+                          className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-medium rounded-lg border border-slate-700 transition-colors"
+                        >
+                          Set as Active
+                        </button>
+                      )}
                       <button
-                        onClick={() => handleSetActive(versionToActivate, tpl.name)}
+                        onClick={() => handleDeleteTemplate(tpl.id, tpl.name)}
                         disabled={loading}
-                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-medium rounded-lg border border-slate-700 shrink-0 transition-colors"
+                        title="Delete template"
+                        className="p-1.5 bg-red-950/40 hover:bg-red-900/60 text-red-400 hover:text-red-200 border border-red-800/50 rounded-lg transition-colors"
                       >
-                        Set as Active
+                        <Trash2 className="w-4 h-4" />
                       </button>
-                    )}
+                    </div>
                   </div>
                 )
               })}

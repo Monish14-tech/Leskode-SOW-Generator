@@ -279,6 +279,11 @@ export const api = {
     return `${API_BASE}/sow/${projectId}/download/${docId}`
   },
 
+  async deleteSow(projectId: string, sowId: string): Promise<{ message: string; deleted_id: string }> {
+    const res = await client.delete(`/sow/${projectId}/${sowId}`)
+    return res.data
+  },
+
   // Templates
   async getTemplates(): Promise<{ templates: SowTemplateItem[] }> {
     const res = await client.get('/templates')
@@ -299,6 +304,11 @@ export const api = {
 
   async publishTemplateVersion(versionId: string): Promise<any> {
     const res = await client.post(`/templates/versions/${versionId}/publish`)
+    return res.data
+  },
+
+  async deleteTemplate(templateId: string): Promise<{ message: string; deleted_id: string }> {
+    const res = await client.delete(`/templates/${templateId}`)
     return res.data
   },
 }
