@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 class ProjectCreate(BaseModel):
     client_name: str
     project_name: str
+    prepared_by: Optional[str] = "Leskode Solutions Team"
     industry: Optional[str] = None
     description: Optional[str] = None
     existing_systems: Optional[str] = None
@@ -38,6 +39,7 @@ def _project_dict(p: Project, include_stats: bool = False) -> dict:
         "id": p.id,
         "client_name": p.client_name,
         "project_name": p.project_name,
+        "prepared_by": getattr(p, "prepared_by", None) or "Leskode Solutions Team",
         "industry": p.industry,
         "description": p.description,
         "existing_systems": p.existing_systems,
@@ -101,6 +103,7 @@ def create_project(
         owner_id=current_user.id,
         client_name=req.client_name,
         project_name=req.project_name,
+        prepared_by=req.prepared_by or "Leskode Solutions Team",
         industry=req.industry,
         description=req.description,
         existing_systems=req.existing_systems,

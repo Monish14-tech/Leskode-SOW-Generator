@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { X, FolderPlus, Building, Briefcase, Layers, FileText } from 'lucide-react'
+import { X, FolderPlus, Building, Briefcase, Layers, FileText, User } from 'lucide-react'
 import { api } from '../api'
 import type { Project } from '../types'
 
@@ -16,6 +16,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
 }) => {
   const [clientName, setClientName] = useState('')
   const [projectName, setProjectName] = useState('')
+  const [preparedBy, setPreparedBy] = useState('Leskode Solutions Team')
   const [zohoEdition, setZohoEdition] = useState('')
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
@@ -31,6 +32,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
       const proj = await api.createProject({
         client_name: clientName,
         project_name: projectName,
+        prepared_by: preparedBy || 'Leskode Solutions Team',
         primary_zoho_edition: zohoEdition || undefined,
         description: description || undefined,
       })
@@ -39,6 +41,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
       // reset form
       setClientName('')
       setProjectName('')
+      setPreparedBy('Leskode Solutions Team')
       setZohoEdition('')
       setDescription('')
     } catch (err: any) {
@@ -110,6 +113,26 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
                 />
               </div>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1">
+              Prepared By (Author / Consultant Name) *
+            </label>
+            <div className="relative">
+              <User className="w-4 h-4 text-slate-500 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                required
+                value={preparedBy}
+                onChange={(e) => setPreparedBy(e.target.value)}
+                placeholder="e.g. Monish / Leskode Solutions Team"
+                className="w-full pl-9 pr-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-sm text-white focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+            <p className="mt-1 text-[11px] text-slate-500">
+              This name will be printed on the SOW cover page, document control metadata, and sign-off acceptance block.
+            </p>
           </div>
 
           <div>

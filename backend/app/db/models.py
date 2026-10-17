@@ -172,6 +172,7 @@ class Project(Base):
     status = Column(SAEnum(ProjectStatus), default=ProjectStatus.DRAFT)
     target_start_date = Column(DateTime(timezone=True))
     target_end_date = Column(DateTime(timezone=True))
+    prepared_by = Column(String(255), default="Leskode Solutions Team")
     notes = Column(Text)
     active_template_id = Column(UUID(as_uuid=False), ForeignKey("sow_template_versions.id"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

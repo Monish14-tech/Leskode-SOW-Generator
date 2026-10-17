@@ -13,6 +13,7 @@ export interface Project {
   owner_id: string
   client_name: string
   project_name: string
+  prepared_by?: string
   status: string
   primary_zoho_edition?: string
   target_go_live_date?: string
@@ -235,8 +236,19 @@ export interface SowTemplateItem {
   description?: string
   active_version?: {
     id: string
-    version_number: number
+    version_number: string | number
     status: string
-    detected_placeholders: string[]
+    original_filename?: string
+    detected_placeholders?: string[]
   }
+  versions?: Array<{
+    id: string
+    template_id: string
+    version_number: string
+    original_filename?: string
+    status: string
+    placeholder_map?: Record<string, string>
+    change_summary?: string
+    created_at?: string
+  }>
 }

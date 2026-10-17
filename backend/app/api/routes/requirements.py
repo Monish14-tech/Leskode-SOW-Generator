@@ -114,8 +114,12 @@ def _analyse_in_background(project_id: str, doc_ids: List[str]):
                     db.commit()
                     return
 
-                # Save requirements
+                # Save requirements (optimized to max 25)
                 for req_data in result.get("requirements", []):
+                    current_total = db.query(Requirement).filter(Requirement.project_id == project_id).count()
+                    if current_total >= 25:
+                        break
+
                     # Skip duplicates
                     dup = db.query(Requirement).filter(
                         Requirement.project_id == project_id,

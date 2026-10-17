@@ -79,7 +79,7 @@ export const api = {
     return res.data
   },
 
-  async createProject(data: { client_name: string; project_name: string; primary_zoho_edition?: string; target_go_live_date?: string; description?: string }): Promise<Project> {
+  async createProject(data: { client_name: string; project_name: string; prepared_by?: string; primary_zoho_edition?: string; target_go_live_date?: string; description?: string }): Promise<Project> {
     const res = await client.post('/projects', data)
     return res.data
   },

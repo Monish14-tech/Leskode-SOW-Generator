@@ -244,6 +244,7 @@ def generate_leskode_sow(content: Dict[str, Any], output_path: str) -> str:
     app_line = content.get("application_line", "Zoho One (CRM, Books, Inventory, Desk, Flow, Analytics)")
     business_one_liner = content.get("business_one_liner", "Enterprise Operations & Business Automation")
     version_date = content.get("version_date", "Version 1.0 | October 2026")
+    prepared_by = content.get("prepared_by") or "Leskode Solutions Team"
     contact_phone = "+91 9500424307"
 
     # ─── SECTION 1: COVER PAGE ──────────────────────────────────────────────────
@@ -306,7 +307,7 @@ def generate_leskode_sow(content: Dict[str, Any], output_path: str) -> str:
 
     meta_p = doc.add_paragraph()
     meta_p.paragraph_format.space_after = Pt(0)
-    meta_run = meta_p.add_run(f"{version_date}  •  Prepared by Monish  •  Contact: {contact_phone}")
+    meta_run = meta_p.add_run(f"{version_date}  •  Prepared by {prepared_by}  •  Contact: {contact_phone}")
     meta_run.font.size = Pt(9.5)
     meta_run.font.color.rgb = COLOR_MUTED
 
@@ -879,7 +880,7 @@ def generate_leskode_sow(content: Dict[str, Any], output_path: str) -> str:
 
     p_sign_note = doc.add_paragraph()
     p_sign_note.paragraph_format.space_before = Pt(12)
-    r_sn = p_sign_note.add_run("Confidential — Leskode  |  Prepared by Monish  |  Shavs Technologies Pvt Ltd, Coimbatore")
+    r_sn = p_sign_note.add_run(f"Confidential — Leskode  |  Prepared by {prepared_by}  |  Shavs Technologies Pvt Ltd, Coimbatore")
     r_sn.font.size = Pt(8.5)
     r_sn.font.color.rgb = COLOR_MUTED
 

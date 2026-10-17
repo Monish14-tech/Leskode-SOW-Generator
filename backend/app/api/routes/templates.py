@@ -24,13 +24,22 @@ TEMPLATES_DIR.mkdir(exist_ok=True)
 
 
 def _template_dict(t: SowTemplate) -> dict:
+    versions = [_version_dict(v) for v in (t.versions or [])]
+    active_v = next((v for v in (t.versions or []) if v.status == TemplateStatus.ACTIVE), None)
     return {
         "id": t.id,
         "name": t.name,
         "description": t.description,
         "organization_id": t.organization_id,
         "created_at": t.created_at.isoformat() if t.created_at else None,
-        "versions": [_version_dict(v) for v in (t.versions or [])],
+        "active_version": {
+            "id": active_v.id,
+            "version_number": active_v.version_number,
+            "status": active_v.status.value if active_v.status else "active",
+            "original_filename": active_v.original_filename,
+            "detected_placeholders": (active_v.extracted_structure or {}).get("placeholders", []) if active_v.extracted_structure else list((active_v.placeholder_map or {}).keys()),
+        } if active_v else None,
+        "versions": versions,
     }
 
 
@@ -82,9 +91,12 @@ async def upload_template(
     if len(content) > 20 * 1024 * 1024:
         raise HTTPException(413, "Template file must be under 20MB.")
 
-    # Save file
+    # Save file to backend templates directory with absolute path
+    backend_base = Path(__file__).resolve().parent.parent.parent
+    templates_dir = backend_base / "templates"
+    templates_dir.mkdir(exist_ok=True)
     safe_name = f"template_{uuid.uuid4()}.docx"
-    save_path = TEMPLATES_DIR / safe_name
+    save_path = templates_dir / safe_name
     with open(save_path, "wb") as f:
         f.write(content)
 
@@ -120,23 +132,33 @@ async def upload_template(
     for ph in structure.get("placeholders", []):
         placeholder_map[f"{{{{{ph}}}}}"] = ph.lower()
 
+    # Archive previous active versions across org so new upload takes effect immediately
+    db.query(SowTemplateVersion).join(
+        SowTemplate, SowTemplateVersion.template_id == SowTemplate.id
+    ).filter(
+        SowTemplate.organization_id == current_user.organization_id,
+        SowTemplateVersion.status == TemplateStatus.ACTIVE,
+    ).update({"status": TemplateStatus.ARCHIVED}, synchronize_session=False)
+
     version = SowTemplateVersion(
         template_id=template.id,
         version_number=version_number,
         storage_path=str(save_path),
         original_filename=file.filename,
-        status=TemplateStatus.DRAFT,
+        status=TemplateStatus.ACTIVE,
         extracted_structure=structure,
         placeholder_map=placeholder_map,
         section_map={},
-        change_summary=change_summary,
+        change_summary=change_summary or f"Uploaded and activated {file.filename}",
+        published_by=current_user.id,
+        published_at=datetime.now(timezone.utc),
     )
     db.add(version)
     db.commit()
     db.refresh(version)
     db.refresh(template)
 
-    logger.info(f"Template uploaded: {name} v{version_number}")
+    logger.info(f"Master template uploaded and activated: {name} v{version_number} at {save_path}")
     return {"template": _template_dict(template), "version": _version_dict(version)}
 
 
@@ -158,12 +180,14 @@ def publish_template_version(
     if not template or template.organization_id != current_user.organization_id:
         raise HTTPException(403, "Access denied.")
 
-    # Archive other active versions of the same template
-    db.query(SowTemplateVersion).filter(
-        SowTemplateVersion.template_id == version.template_id,
+    # Archive other active versions across org
+    db.query(SowTemplateVersion).join(
+        SowTemplate, SowTemplateVersion.template_id == SowTemplate.id
+    ).filter(
+        SowTemplate.organization_id == current_user.organization_id,
         SowTemplateVersion.id != version_id,
         SowTemplateVersion.status == TemplateStatus.ACTIVE,
-    ).update({"status": TemplateStatus.ARCHIVED})
+    ).update({"status": TemplateStatus.ARCHIVED}, synchronize_session=False)
 
     version.status = TemplateStatus.ACTIVE
     version.published_by = current_user.id

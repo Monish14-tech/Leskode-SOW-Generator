@@ -254,6 +254,26 @@ The objective is to deploy an end-to-end connected Zoho ecosystem connecting cus
     }
   }
 
+  // Batch Approve All Requirements
+  const handleApproveAllRequirements = async () => {
+    setActionLoading(true)
+    try {
+      await Promise.all(
+        reqs.map((r) =>
+          r.review_status === 'Approved by Consultant'
+            ? Promise.resolve()
+            : api.updateRequirement(project.id, r.id, { review_status: 'Approved by Consultant' })
+        )
+      )
+      setReqs((prev) => prev.map((r) => ({ ...r, review_status: 'Approved by Consultant' })))
+      showNotice('All extracted requirements approved for SOW!')
+    } catch (err) {
+      showNotice('Failed to approve all requirements', true)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   // 3. Recommend Zoho Modules
   const handleRecommendModules = async () => {
     setActionLoading(true)
@@ -701,6 +721,16 @@ The objective is to deploy an end-to-end connected Zoho ecosystem connecting cus
               </div>
 
               <div className="flex items-center space-x-2">
+                {reqs.length > 0 && (
+                  <button
+                    onClick={handleApproveAllRequirements}
+                    disabled={actionLoading}
+                    className="flex items-center space-x-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold rounded-xl shadow transition-all"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Approve All Requirements</span>
+                  </button>
+                )}
                 <button
                   onClick={handleRecommendModules}
                   disabled={actionLoading}

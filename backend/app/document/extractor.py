@@ -275,7 +275,7 @@ def extract_template_structure(file_path: str) -> Dict[str, Any]:
 
     headings = []
     paragraphs_meta = []
-    placeholder_pattern = re.compile(r"\{\{([A-Z_]+)\}\}")
+    placeholder_pattern = re.compile(r"\{\{([A-Za-z0-9_\s\-]+)\}\}|<<([A-Za-z0-9_\s\-]+)>>|\[([A-Z][A-Za-z0-9_\s\-]+)\]")
     found_placeholders = set()
     static_sections = []
     tables_info = []
@@ -297,16 +297,20 @@ def extract_template_structure(file_path: str) -> Dict[str, Any]:
             })
 
         # Detect placeholders
-        matches = placeholder_pattern.findall(text)
-        for match in matches:
-            found_placeholders.add(match)
+        raw_matches = placeholder_pattern.findall(text)
+        para_placeholders = []
+        for m in raw_matches:
+            val = (m[0] or m[1] or m[2]).strip()
+            if val:
+                found_placeholders.add(val)
+                para_placeholders.append(val)
 
         paragraphs_meta.append({
             "index": i,
             "style": style_name,
             "text_preview": text[:100],
-            "has_placeholder": bool(matches),
-            "placeholders": matches,
+            "has_placeholder": bool(para_placeholders),
+            "placeholders": para_placeholders,
         })
 
     # Detect tables
@@ -315,7 +319,10 @@ def extract_template_structure(file_path: str) -> Dict[str, Any]:
         for row in table.rows:
             for cell in row.cells:
                 cell_texts.append(cell.text.strip())
-        table_placeholders = placeholder_pattern.findall(" ".join(cell_texts))
+        raw_table_matches = placeholder_pattern.findall(" ".join(cell_texts))
+        table_placeholders = [(m[0] or m[1] or m[2]).strip() for m in raw_table_matches if (m[0] or m[1] or m[2]).strip()]
+        for tp in table_placeholders:
+            found_placeholders.add(tp)
         tables_info.append({
             "table_index": t_idx,
             "row_count": len(table.rows),

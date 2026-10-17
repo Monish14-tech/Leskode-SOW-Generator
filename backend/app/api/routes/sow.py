@@ -47,10 +47,46 @@ def _sow_dict(s: SowDocument) -> dict:
 def _build_sow_content(project_id: str, db: Session) -> dict:
     """Assemble all approved project data into the structured Leskode SOW content dictionary."""
     project = db.query(Project).filter(Project.id == project_id).first()
-    reqs = db.query(Requirement).filter(Requirement.project_id == project_id).all()
-    tasks = db.query(ScopeTask).filter(ScopeTask.project_id == project_id, ScopeTask.parent_task_id == None).all()
-    automations = db.query(AutomationItem).filter(AutomationItem.project_id == project_id).all()
-    integrations = db.query(IntegrationItem).filter(IntegrationItem.project_id == project_id).all()
+
+    # Only approved requirements
+    approved_reqs = db.query(Requirement).filter(
+        Requirement.project_id == project_id,
+        Requirement.review_status == RequirementStatus.APPROVED_BY_CONSULTANT,
+    ).all()
+    reqs = approved_reqs if approved_reqs else db.query(Requirement).filter(
+        Requirement.project_id == project_id,
+        Requirement.review_status != RequirementStatus.REJECTED,
+    ).all()
+
+    # Only approved tasks
+    approved_tasks = db.query(ScopeTask).filter(
+        ScopeTask.project_id == project_id,
+        ScopeTask.parent_task_id == None,
+        ScopeTask.is_approved == True,
+    ).all()
+    tasks = approved_tasks if approved_tasks else db.query(ScopeTask).filter(
+        ScopeTask.project_id == project_id,
+        ScopeTask.parent_task_id == None,
+    ).all()
+
+    # Only approved automations
+    approved_autos = db.query(AutomationItem).filter(
+        AutomationItem.project_id == project_id,
+        AutomationItem.is_approved == True,
+    ).all()
+    automations = approved_autos if approved_autos else db.query(AutomationItem).filter(
+        AutomationItem.project_id == project_id,
+    ).all()
+
+    # Only approved integrations
+    approved_ints = db.query(IntegrationItem).filter(
+        IntegrationItem.project_id == project_id,
+        IntegrationItem.is_approved == True,
+    ).all()
+    integrations = approved_ints if approved_ints else db.query(IntegrationItem).filter(
+        IntegrationItem.project_id == project_id,
+    ).all()
+
     clarifications = db.query(ClarificationQuestion).filter(
         ClarificationQuestion.project_id == project_id,
         ClarificationQuestion.status == ClarificationStatus.OPEN,
@@ -58,13 +94,19 @@ def _build_sow_content(project_id: str, db: Session) -> dict:
     assumptions = db.query(Assumption).filter(Assumption.project_id == project_id).all()
     exclusions = db.query(Exclusion).filter(Exclusion.project_id == project_id).all()
     risks = db.query(Risk).filter(Risk.project_id == project_id).all()
-    modules = db.query(ProjectModuleMapping).filter(
+
+    # Only approved modules
+    approved_mods = db.query(ProjectModuleMapping).filter(
         ProjectModuleMapping.project_id == project_id,
         ProjectModuleMapping.is_approved == True,
+    ).all()
+    modules = approved_mods if approved_mods else db.query(ProjectModuleMapping).filter(
+        ProjectModuleMapping.project_id == project_id,
     ).all()
 
     client_name = project.client_name if project else "Valued Client"
     project_name = project.project_name if project else "Zoho Implementation"
+    prepared_by = getattr(project, "prepared_by", None) or "Leskode Solutions Team"
 
     app_names = [m.module.display_name for m in modules if m.module]
     app_line = f"Zoho One ({', '.join(app_names)})" if app_names else "Zoho One (CRM, Books, Inventory, Desk, Flow, Analytics)"
@@ -248,6 +290,7 @@ def _build_sow_content(project_id: str, db: Session) -> dict:
     return {
         "client_name": client_name,
         "project_name": project_name,
+        "prepared_by": prepared_by,
         "solution_title": f"Zoho Business Management Solution for {client_name}",
         "application_line": app_line,
         "business_one_liner": project.notes or "Enterprise Operations & Business Automation",
@@ -305,24 +348,40 @@ def generate_sow(
     # Build content
     content = _build_sow_content(project_id, db)
 
-    # Generate document using the official Leskode SOW Generator
-    if version and version.storage_path and os.path.exists(version.storage_path) and "leskode" not in (version.original_filename or "").lower() and "master" not in (version.original_filename or "").lower():
+    # Resolve template path safely if version exists
+    tpl_path = None
+    if version and version.storage_path:
+        backend_base = Path(__file__).resolve().parent.parent.parent
+        candidates = [
+            Path(version.storage_path),
+            backend_base / version.storage_path,
+            backend_base / "templates" / Path(version.storage_path).name,
+            Path("templates") / Path(version.storage_path).name,
+        ]
+        for c in candidates:
+            if c.exists() and c.is_file():
+                tpl_path = c
+                break
+
+    # If active master template DOCX exists, populate it directly to replicate exact logos, layout, and styling
+    if tpl_path:
         try:
+            logger.info(f"Generating SOW from master template: {tpl_path} ({version.original_filename if version else 'custom'})")
             gen_result = generate_sow_docx(
-                template_path=version.storage_path,
+                template_path=str(tpl_path),
                 output_path=str(output_path),
                 content=content,
                 placeholder_map=version.placeholder_map or {},
             )
-        except GenerationError as e:
-            logger.warning(f"Custom template generation failed: {e}. Falling back to official Leskode generator.")
+        except Exception as e:
+            logger.warning(f"Master template generation failed: {e}. Falling back to official Leskode generator.")
             generate_leskode_sow(content, str(output_path))
             gen_result = {
                 "status": "success",
                 "output_path": str(output_path),
                 "file_size_bytes": os.path.getsize(str(output_path)),
                 "unresolved_placeholders": [],
-                "warnings": [f"Custom template failed ({e}), generated using official Leskode SOW Generator."],
+                "warnings": [f"Master template note ({e}), generated using official Leskode SOW engine."],
             }
     else:
         # Generate with the official Leskode 17-section SOW Flow Template

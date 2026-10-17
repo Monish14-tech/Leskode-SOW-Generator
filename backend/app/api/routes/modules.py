@@ -48,14 +48,21 @@ ZOHO_MODULES = [
      "description": "Website visitor tracking, live chat, lead scoring."},
     {"name": "zoho_expense", "display_name": "Zoho Expense", "category": "Finance",
      "description": "Expense management, reimbursement workflows, receipt scanning."},
+    {"name": "zoho_payroll", "display_name": "Zoho Payroll", "category": "HR & Payroll",
+     "description": "Automated payroll processing, salary structures, statutory compliance, tax deductions, and direct payslip distribution."},
+    {"name": "zoho_billing", "display_name": "Zoho Billing", "category": "Finance",
+     "description": "Subscription billing, recurring invoices, usage-based metering, and customer self-service portal."},
+    {"name": "zoho_commerce", "display_name": "Zoho Commerce", "category": "E-Commerce",
+     "description": "E-commerce storefront builder, product catalog, shopping cart, and payment gateway integration."},
 ]
 
 
 def _ensure_modules_seeded(db: Session):
-    if db.query(ZohoModule).count() == 0:
-        for m in ZOHO_MODULES:
+    for m in ZOHO_MODULES:
+        existing = db.query(ZohoModule).filter(ZohoModule.name == m["name"]).first()
+        if not existing:
             db.add(ZohoModule(**m))
-        db.commit()
+    db.commit()
 
 
 def _mapping_dict(m: ProjectModuleMapping) -> dict:

@@ -53,6 +53,20 @@ export const TemplateManagerModal: React.FC<TemplateManagerModalProps> = ({
     }
   }
 
+  const handleSetActive = async (versionId: string, templateName: string) => {
+    setLoading(true)
+    setMsg(null)
+    try {
+      await api.publishTemplateVersion(versionId)
+      setMsg({ text: `"${templateName}" is now the active master template!` })
+      await loadTemplates()
+    } catch (err: any) {
+      setMsg({ text: err.response?.data?.detail || 'Failed to activate template.', isError: true })
+    } finally {
+      setLoading(false)
+    }
+  }
+
   if (!isOpen) return null
 
   return (
@@ -66,7 +80,7 @@ export const TemplateManagerModal: React.FC<TemplateManagerModalProps> = ({
             <div>
               <h2 className="text-base font-semibold text-white">Master SOW Templates</h2>
               <p className="text-xs text-slate-400">
-                Manage organization-standard DOCX templates with placeholder replacement
+                Upload any format or sample SOW. The generator replicates its exact logo, layout, and styling.
               </p>
             </div>
           </div>
@@ -93,10 +107,13 @@ export const TemplateManagerModal: React.FC<TemplateManagerModalProps> = ({
 
         {/* Upload Form */}
         <div className="mt-5 p-4 rounded-xl bg-slate-950 border border-slate-800">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-3 flex items-center space-x-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1 flex items-center space-x-2">
             <Upload className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Upload New Master DOCX Template</span>
+            <span>Upload Master SOW Template or Sample SOW</span>
           </h3>
+          <p className="text-[11px] text-slate-400 mb-3">
+            Upload any .docx SOW. Logos, margins, headers, footers, module tables, and typography are 100% cloned for new projects.
+          </p>
 
           <form onSubmit={handleUpload} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
@@ -108,14 +125,14 @@ export const TemplateManagerModal: React.FC<TemplateManagerModalProps> = ({
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Standard Zoho Implementation SOW"
+                  placeholder="e.g. Master Zoho SOW (Corporate Format)"
                   className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div>
                 <label className="block text-[11px] font-medium text-slate-400 mb-1">
-                  Select .docx File
+                  Select .docx Template or Sample SOW
                 </label>
                 <input
                   type="file"
@@ -132,7 +149,7 @@ export const TemplateManagerModal: React.FC<TemplateManagerModalProps> = ({
               disabled={loading || !file}
               className="py-1.5 px-4 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium text-xs rounded-lg transition-all"
             >
-              {loading ? 'Uploading & Analyzing...' : 'Upload & Extract Placeholders'}
+              {loading ? 'Uploading & Analyzing...' : 'Upload & Set as Active Master Template'}
             </button>
           </form>
         </div>
@@ -140,56 +157,88 @@ export const TemplateManagerModal: React.FC<TemplateManagerModalProps> = ({
         {/* Existing Templates List */}
         <div className="mt-6">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
-            Existing Templates ({templates.length})
+            Existing Master Templates ({templates.length})
           </h3>
 
           {templates.length === 0 ? (
             <div className="p-6 text-center rounded-xl bg-slate-950/50 border border-slate-800/80">
               <FileCode className="w-8 h-8 text-slate-600 mx-auto mb-2" />
               <p className="text-xs text-slate-400">
-                No templates uploaded yet. The system will use its built-in professional fallback layout until you upload a custom template.
+                No templates uploaded yet. The system will use its built-in official Leskode SOW engine until you upload a custom template.
               </p>
             </div>
           ) : (
             <div className="space-y-3">
-              {templates.map((tpl) => (
-                <div
-                  key={tpl.id}
-                  className="p-4 rounded-xl bg-slate-950 border border-slate-800 flex items-start justify-between"
-                >
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <span className="font-medium text-sm text-white">{tpl.name}</span>
-                      {tpl.active_version && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800/60">
-                          Active v{tpl.active_version.version_number}
-                        </span>
-                      )}
-                    </div>
-                    {tpl.description && (
-                      <p className="text-xs text-slate-400 mt-0.5">{tpl.description}</p>
-                    )}
+              {templates.map((tpl) => {
+                const isActive = Boolean(tpl.active_version)
+                const latestVersion = tpl.versions?.[0]
+                const versionToActivate = tpl.active_version?.id || latestVersion?.id
 
-                    {tpl.active_version?.detected_placeholders && (
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {tpl.active_version.detected_placeholders.slice(0, 8).map((ph) => (
-                          <span
-                            key={ph}
-                            className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-indigo-300"
-                          >
-                            {ph}
+                return (
+                  <div
+                    key={tpl.id}
+                    className={`p-4 rounded-xl border flex items-start justify-between gap-3 ${
+                      isActive
+                        ? 'bg-slate-950 border-indigo-700/60 shadow-lg shadow-indigo-950/20'
+                        : 'bg-slate-950/60 border-slate-800'
+                    }`}
+                  >
+                    <div className="space-y-1">
+                      <div className="flex items-center space-x-2">
+                        <span className="font-semibold text-sm text-white">{tpl.name}</span>
+                        {isActive ? (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-800/60 flex items-center space-x-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>Active Master</span>
                           </span>
-                        ))}
-                        {tpl.active_version.detected_placeholders.length > 8 && (
-                          <span className="text-[10px] text-slate-500 py-0.5">
-                            +{tpl.active_version.detected_placeholders.length - 8} more
+                        ) : (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-900 text-slate-400 border border-slate-800">
+                            Archived
                           </span>
                         )}
                       </div>
+
+                      {tpl.active_version?.original_filename && (
+                        <p className="text-[11px] font-mono text-slate-400">
+                          File: {tpl.active_version.original_filename}
+                        </p>
+                      )}
+
+                      {tpl.description && (
+                        <p className="text-xs text-slate-400">{tpl.description}</p>
+                      )}
+
+                      {tpl.active_version?.detected_placeholders && tpl.active_version.detected_placeholders.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {tpl.active_version.detected_placeholders.slice(0, 8).map((ph) => (
+                            <span
+                              key={ph}
+                              className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-900 border border-slate-800 text-indigo-300"
+                            >
+                              {ph}
+                            </span>
+                          ))}
+                          {tpl.active_version.detected_placeholders.length > 8 && (
+                            <span className="text-[10px] text-slate-500 py-0.5">
+                              +{tpl.active_version.detected_placeholders.length - 8} more
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {!isActive && versionToActivate && (
+                      <button
+                        onClick={() => handleSetActive(versionToActivate, tpl.name)}
+                        disabled={loading}
+                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white text-xs font-medium rounded-lg border border-slate-700 shrink-0 transition-colors"
+                      >
+                        Set as Active
+                      </button>
                     )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

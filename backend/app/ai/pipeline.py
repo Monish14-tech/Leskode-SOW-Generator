@@ -172,6 +172,16 @@ Always respond with valid JSON only. Never invent information that is not in the
 Clearly distinguish between confirmed client requirements and your own AI recommendations.
 Label all AI-generated inferences with is_ai_generated: true."""
 
+SYSTEM_ZOHO_ARCHITECT = """You are a Principal Zoho Certified Enterprise Architect and Implementation Lead.
+Your role is to map client business requirements strictly to real, workable, commercially standard Zoho applications and capabilities.
+Rules:
+1. ONLY recommend official, commercially available Zoho products:
+   - Zoho CRM, Zoho Books, Zoho Inventory, Zoho Creator, Zoho Desk, Zoho Projects, Zoho Analytics, Zoho People, Zoho Payroll, Zoho Sign, Zoho Flow, Zoho Forms, Zoho SalesIQ, Zoho Expense, Zoho Billing, Zoho Commerce.
+2. Ensure every recommended module, customisation, workflow, and integration is 100% workable within the Zoho ecosystem (e.g., standard Zoho APIs, Deluge scripting in Zoho Creator/CRM, native Zoho Finance Suite unified data models, Zoho Flow integrations).
+3. Do NOT recommend non-existent Zoho products, experimental modules, or impossible configurations.
+4. Keep requirements optimized, structured, and focused on practical delivery within agreed scope.
+Always respond with valid JSON only."""
+
 
 # ─── Heuristic Fallback Analysis Engine ─────────────────────────────────────────
 
@@ -761,6 +771,8 @@ Extract all business requirements and return a JSON object with this structure:
 }}
 
 Rules:
+- CRITICAL OPTIMIZATION: Synthesize and optimize into AT MOST 25 key, high-impact business requirements.
+- Keep ONLY the main extracted requirements, consolidating minor or repetitive bullet points into executive-grade requirements.
 - is_ai_generated = false if the requirement is explicitly stated in the text.
 - is_ai_generated = true if you are inferring something not directly stated.
 - confidence = 1.0 means explicitly stated; 0.5 means implied; 0.2 means inferred.
@@ -768,10 +780,16 @@ Rules:
 - Number requirements starting from REQ-{existing_req_count + 1:03d}.
 """
     try:
-        return call_ai(prompt, SYSTEM_REQUIREMENTS_ANALYST)
+        res = call_ai(prompt, SYSTEM_REQUIREMENTS_ANALYST)
+        if isinstance(res, dict) and "requirements" in res:
+            res["requirements"] = res["requirements"][:25]
+        return res
     except (AINotConfiguredError, AIServiceError) as e:
         logger.warning(f"AI call failed ({e}). Falling back to heuristic extraction.")
-        return _heuristic_extract_requirements(text, source_filename, page_hint, existing_req_count)
+        res = _heuristic_extract_requirements(text, source_filename, page_hint, existing_req_count)
+        if isinstance(res, dict) and "requirements" in res:
+            res["requirements"] = res["requirements"][:25]
+        return res
 
 
 def recommend_zoho_modules(
@@ -785,7 +803,7 @@ def recommend_zoho_modules(
 
     req_summary = "\n".join([
         f"- [{r.get('req_id')}] {r.get('title')}: {r.get('description', '')[:200]}"
-        for r in requirements[:50]
+        for r in requirements[:30]
     ])
     prompt = f"""Based on the following confirmed client requirements, recommend which Zoho applications should be implemented.
 
@@ -803,8 +821,8 @@ Return a JSON object:
       "linked_requirement_ids": ["REQ-001", "REQ-003"],
       "recommendation_reason": "Specific justification from requirements",
       "proposed_configuration": "Key configuration items",
-      "feasibility_status": "Pending Assessment",
-      "licensing_notes": "Edition or plan considerations",
+      "feasibility_status": "Confirmed",
+      "licensing_notes": "Standard workable Zoho edition (e.g. Zoho One / Enterprise)",
       "is_ai_recommended": true,
       "custom_dev_required": null,
       "pending_questions": ["Question 1", "Question 2"]
@@ -818,11 +836,14 @@ Return a JSON object:
   ]
 }}
 
-Only recommend modules that are genuinely justified by the requirements.
-If a module's availability in a specific Zoho edition is uncertain, note it in licensing_notes.
-Always set is_ai_recommended: true."""
+STRICT ZOHO WORKABILITY RULES:
+1. Every recommended module MUST be a real, workable, commercially standard Zoho application:
+   - Zoho CRM, Zoho Books, Zoho Inventory, Zoho Creator, Zoho Desk, Zoho Projects, Zoho Analytics, Zoho People, Zoho Payroll, Zoho Sign, Zoho Flow, Zoho Forms, Zoho SalesIQ, Zoho Expense, Zoho Billing, Zoho Commerce.
+2. For bespoke business workflows, weighing scale IoT, or external device integration, recommend ZOHO CREATOR (low-code app builder with Deluge) or Zoho Flow webhooks rather than inventing fake apps.
+3. Only recommend modules that are genuinely justified by the requirements and 100% workable in the Zoho platform.
+4. Always set is_ai_recommended: true."""
     try:
-        return call_ai(prompt, SYSTEM_REQUIREMENTS_ANALYST)
+        return call_ai(prompt, SYSTEM_ZOHO_ARCHITECT)
     except (AINotConfiguredError, AIServiceError) as e:
         logger.warning(f"AI call failed ({e}). Falling back to heuristic module recommendation.")
         return _heuristic_recommend_modules(requirements, existing_systems)
