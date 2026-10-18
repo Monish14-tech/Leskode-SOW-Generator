@@ -1,5 +1,5 @@
 import React from 'react'
-import { Sparkles, FileText, User as UserIcon, LayoutTemplate } from 'lucide-react'
+import { Sparkles, FileText, User as UserIcon, LayoutTemplate, LogOut } from 'lucide-react'
 import type { User, Project } from '../types'
 
 interface NavbarProps {
@@ -71,18 +71,31 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>Master Templates</span>
           </button>
 
-          <div className="flex items-center space-x-2.5 pl-3 border-l border-slate-800">
-            <div className="w-7 h-7 rounded-lg bg-indigo-600/25 border border-indigo-500/40 flex items-center justify-center text-xs font-bold text-indigo-300">
-              M
-            </div>
-            <div className="text-left">
-              <span className="block text-xs font-semibold text-slate-200">
-                {user?.full_name || 'Monish (Leskode)'}
-              </span>
-              <span className="block text-[10px] font-medium text-emerald-400">
-                Zoho Advanced Partner
-              </span>
-            </div>
+          <div className="flex items-center space-x-2 pl-3 border-l border-slate-800">
+            <button
+              onClick={onOpenAuth}
+              title="Click to sign in or switch workspace"
+              className="flex items-center space-x-2 text-left hover:opacity-80 transition-opacity"
+            >
+              <div className="w-7 h-7 rounded-lg bg-indigo-600/25 border border-indigo-500/40 flex items-center justify-center text-xs font-bold text-indigo-300">
+                {user?.full_name ? user.full_name.charAt(0).toUpperCase() : 'M'}
+              </div>
+              <div>
+                <span className="block text-xs font-semibold text-slate-200">
+                  {user?.full_name || 'Monish (Leskode)'}
+                </span>
+                <span className="block text-[10px] font-medium text-emerald-400">
+                  Zoho Advanced Partner
+                </span>
+              </div>
+            </button>
+            <button
+              onClick={onLogout}
+              title="Reset session / Sign out"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-200 hover:bg-slate-800 transition-colors ml-1"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
           </div>
         </div>
       </div>

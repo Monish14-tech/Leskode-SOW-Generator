@@ -40,6 +40,30 @@ client.interceptors.response.use(
   }
 )
 
+export function formatApiError(err: any, fallback = 'An unexpected error occurred'): string {
+  const detail = err?.response?.data?.detail ?? err?.message ?? err
+  if (!detail) return fallback
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return (
+      detail
+        .map((item) => {
+          if (typeof item === 'string') return item
+          if (item && typeof item === 'object') {
+            return item.msg || item.message || JSON.stringify(item)
+          }
+          return String(item)
+        })
+        .filter(Boolean)
+        .join('; ') || fallback
+    )
+  }
+  if (typeof detail === 'object') {
+    return detail.msg || detail.message || JSON.stringify(detail)
+  }
+  return String(detail)
+}
+
 export const api = {
   // Auth
   async login(email: string, password: string):Promise<{ access_token: string; user: User }> {
@@ -89,6 +113,11 @@ export const api = {
     return res.data
   },
 
+  async deleteProject(id: string): Promise<{ message: string; deleted_id: string }> {
+    const res = await client.delete(`/projects/${id}`)
+    return res.data
+  },
+
   // Documents
   async getDocuments(projectId: string): Promise<{ documents: UploadedDoc[] }> {
     const res = await client.get(`/documents/${projectId}`)
@@ -113,6 +142,10 @@ export const api = {
     return { sections: sects }
   },
 
+  async deleteDocument(projectId: string, docId: string): Promise<void> {
+    await client.delete(`/documents/${projectId}/${docId}`)
+  },
+
   // Requirements
   async getRequirements(projectId: string, params?: { category?: string; status?: string }): Promise<{ requirements: Requirement[]; total: number }> {
     const res = await client.get(`/requirements/${projectId}`, { params })
@@ -133,6 +166,10 @@ export const api = {
   async createRequirement(projectId: string, data: any): Promise<Requirement> {
     const res = await client.post(`/requirements/${projectId}`, data)
     return res.data
+  },
+
+  async deleteRequirement(projectId: string, reqId: string): Promise<void> {
+    await client.delete(`/requirements/${projectId}/${reqId}`)
   },
 
   // Modules
@@ -166,6 +203,10 @@ export const api = {
     return res.data
   },
 
+  async removeModule(projectId: string, mappingId: string): Promise<void> {
+    await client.delete(`/modules/${projectId}/${mappingId}`)
+  },
+
   // Scope Tasks
   async getTasks(projectId: string, moduleMappingId?: string): Promise<{ tasks: ScopeTask[] }> {
     const res = await client.get(`/tasks/${projectId}`, {
@@ -192,6 +233,10 @@ export const api = {
     return res.data
   },
 
+  async deleteTask(projectId: string, taskId: string): Promise<void> {
+    await client.delete(`/tasks/${projectId}/${taskId}`)
+  },
+
   // Automations
   async getAutomations(projectId: string): Promise<{ automations: AutomationItem[] }> {
     const res = await client.get(`/automations/${projectId}`)
@@ -207,6 +252,10 @@ export const api = {
   async updateAutomation(projectId: string, automationId: string, data: Partial<AutomationItem>): Promise<AutomationItem> {
     const res = await client.patch(`/automations/${projectId}/${automationId}`, data)
     return res.data
+  },
+
+  async deleteAutomation(projectId: string, automationId: string): Promise<void> {
+    await client.delete(`/automations/${projectId}/${automationId}`)
   },
 
   // Integrations & Clarifications
@@ -237,6 +286,10 @@ export const api = {
       answer,
     })
     return res.data
+  },
+
+  async deleteClarification(projectId: string, questionId: string): Promise<void> {
+    await client.delete(`/integrations/${projectId}/clarifications/${questionId}`)
   },
 
   // Assumptions, Exclusions, Risks

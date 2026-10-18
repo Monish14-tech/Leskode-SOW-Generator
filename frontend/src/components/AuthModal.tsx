@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { X, Lock, Mail, User, Building, Sparkles, AlertCircle } from 'lucide-react'
-import { api } from '../api'
+import { api, formatApiError } from '../api'
 import type { User as UserType } from '../types'
 
 interface AuthModalProps {
@@ -39,9 +39,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
       }
       onClose()
     } catch (err: any) {
-      // If login failed because account doesn't exist, suggest registering
-      const detail = err.response?.data?.detail || 'Authentication failed. Please check credentials.'
-      setError(detail)
+      setError(formatApiError(err, 'Authentication failed. Please check credentials.'))
     } finally {
       setLoading(false)
     }
@@ -62,7 +60,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onSuccess
       onSuccess(res.user)
       onClose()
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Demo login failed.')
+      setError(formatApiError(err, 'Demo login failed.'))
     } finally {
       setLoading(false)
     }

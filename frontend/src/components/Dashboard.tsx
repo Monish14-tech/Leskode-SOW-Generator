@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
 import {
   FolderPlus, Search, Filter, Clock, ArrowRight,
-  Layers, CheckCircle, FileText, HelpCircle, Sparkles, Building
+  Layers, CheckCircle, FileText, HelpCircle, Sparkles, Building, Trash2
 } from 'lucide-react'
+import { api, formatApiError } from '../api'
 import type { Project } from '../types'
 
 interface DashboardProps {
@@ -11,6 +12,7 @@ interface DashboardProps {
   onSelectProject: (p: Project) => void
   onOpenNewProject: () => void
   onQuickDemoProject: () => void
+  onProjectDeleted?: () => void
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({
@@ -19,9 +21,25 @@ export const Dashboard: React.FC<DashboardProps> = ({
   onSelectProject,
   onOpenNewProject,
   onQuickDemoProject,
+  onProjectDeleted,
 }) => {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
+
+  const handleDeleteProject = async (projectId: string, projectName: string) => {
+    if (!window.confirm(`Are you sure you want to delete the project "${projectName}"?\n\nThis will permanently delete all its uploaded documents, requirements, Zoho modules, scope tasks, automations, and generated SOW documents.`)) {
+      return
+    }
+    try {
+      await api.deleteProject(projectId)
+      if (onProjectDeleted) {
+        onProjectDeleted()
+      }
+    } catch (err: any) {
+      console.error(err)
+      window.alert(formatApiError(err, 'Failed to delete project'))
+    }
+  }
 
   const filteredProjects = projects.filter((p) => {
     const matchesSearch =
@@ -168,19 +186,31 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   <span className="text-[11px] font-semibold text-indigo-400 uppercase tracking-wider">
                     {p.client_name}
                   </span>
-                  <span
-                    className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
-                      p.status.includes('SOW')
-                        ? 'bg-purple-950/60 text-purple-300 border-purple-800/60'
-                        : p.status.includes('Review')
-                        ? 'bg-amber-950/60 text-amber-300 border-amber-800/60'
-                        : p.status === 'Approved'
-                        ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/60'
-                        : 'bg-slate-800 text-slate-300 border-slate-700'
-                    }`}
-                  >
-                    {p.status}
-                  </span>
+                  <div className="flex items-center space-x-1.5">
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
+                        p.status.includes('SOW')
+                          ? 'bg-purple-950/60 text-purple-300 border-purple-800/60'
+                          : p.status.includes('Review')
+                          ? 'bg-amber-950/60 text-amber-300 border-amber-800/60'
+                          : p.status === 'Approved'
+                          ? 'bg-emerald-950/60 text-emerald-300 border-emerald-800/60'
+                          : 'bg-slate-800 text-slate-300 border-slate-700'
+                      }`}
+                    >
+                      {p.status}
+                    </span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleDeleteProject(p.id, p.project_name)
+                      }}
+                      title="Delete project"
+                      className="p-1 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-950/50 border border-transparent hover:border-red-800/60 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 <h3 className="text-base font-bold text-white group-hover:text-indigo-300 transition-colors">

@@ -44,6 +44,8 @@ backend/uploads/*
 !backend/uploads/.gitkeep
 backend/sow_outputs/*
 !backend/sow_outputs/.gitkeep
+backend/*_verified.docx
+backend/*.docx
 
 # Node / Frontend
 node_modules/

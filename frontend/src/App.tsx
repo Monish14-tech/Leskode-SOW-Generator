@@ -4,6 +4,7 @@ import { Dashboard } from './components/Dashboard'
 import { ProjectWorkspace } from './components/ProjectWorkspace'
 import { NewProjectModal } from './components/NewProjectModal'
 import { TemplateManagerModal } from './components/TemplateManagerModal'
+import { AuthModal } from './components/AuthModal'
 import { api } from './api'
 import type { User, Project } from './types'
 
@@ -36,6 +37,19 @@ export const App: React.FC = () => {
   // Modals
   const [isNewProjectOpen, setIsNewProjectOpen] = useState(false)
   const [isTemplateOpen, setIsTemplateOpen] = useState(false)
+  const [isAuthOpen, setIsAuthOpen] = useState(false)
+
+  const handleAuthSuccess = (authenticatedUser: User) => {
+    setUser(authenticatedUser)
+    localStorage.setItem('scopepilot_user', JSON.stringify(authenticatedUser))
+    setIsAuthOpen(false)
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('scopepilot_user')
+    localStorage.removeItem('scopepilot_token')
+    setUser(DEFAULT_USER)
+  }
 
   useEffect(() => {
     loadProjects()
@@ -109,10 +123,10 @@ Nexus Healthcare operates 8 regional outpatient diagnostic centers. Currently, p
       <Navbar
         user={user}
         activeProject={activeProject}
-        onOpenAuth={() => {}}
+        onOpenAuth={() => setIsAuthOpen(true)}
         onOpenTemplateManager={() => setIsTemplateOpen(true)}
         onSelectProject={(p) => setActiveProject(p)}
-        onLogout={() => {}}
+        onLogout={handleLogout}
       />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -127,6 +141,10 @@ Nexus Healthcare operates 8 regional outpatient diagnostic centers. Currently, p
               setActiveProject(updated)
               loadProjects()
             }}
+            onProjectDeleted={() => {
+              setActiveProject(null)
+              loadProjects()
+            }}
           />
         ) : (
           <Dashboard
@@ -135,6 +153,7 @@ Nexus Healthcare operates 8 regional outpatient diagnostic centers. Currently, p
             onSelectProject={(p) => setActiveProject(p)}
             onOpenNewProject={() => setIsNewProjectOpen(true)}
             onQuickDemoProject={handleQuickDemoProject}
+            onProjectDeleted={loadProjects}
           />
         )}
       </main>
@@ -151,6 +170,12 @@ Nexus Healthcare operates 8 regional outpatient diagnostic centers. Currently, p
       <TemplateManagerModal
         isOpen={isTemplateOpen}
         onClose={() => setIsTemplateOpen(false)}
+      />
+
+      <AuthModal
+        isOpen={isAuthOpen}
+        onClose={() => setIsAuthOpen(false)}
+        onSuccess={handleAuthSuccess}
       />
     </div>
   )

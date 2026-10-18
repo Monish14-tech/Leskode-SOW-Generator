@@ -12,7 +12,14 @@ def test_monish_enterprises_sow_flow():
 
     print("\n--- 1. Authenticate ---")
     auth_res = client.post("/api/auth/login", json={"email": "admin@scopepilot.ai", "password": "password123"})
-    assert auth_res.status_code == 200, f"Login failed: {auth_res.text}"
+    if auth_res.status_code != 200:
+        auth_res = client.post("/api/auth/register", json={
+            "email": "admin@scopepilot.ai",
+            "password": "password123",
+            "full_name": "Admin Consultant",
+            "organization_name": "ScopePilot Enterprise"
+        })
+    assert auth_res.status_code == 200, f"Login/Register failed: {auth_res.text}"
     token = auth_res.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
     print("   Authenticated as admin@scopepilot.ai")

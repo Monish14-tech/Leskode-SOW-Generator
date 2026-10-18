@@ -1,6 +1,8 @@
 """Projects CRUD routes."""
+import os
 import logging
 from typing import Optional, List
+from pathlib import Path
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -146,15 +148,40 @@ def update_project(
     return _project_dict(project)
 
 
-@router.delete("/{project_id}", status_code=204)
+@router.delete("/{project_id}")
 def delete_project(
     project_id: str,
     current_user: UserProfile = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    """Delete a project, associated files from disk, and cascade delete all project entities."""
     project = require_project_access(project_id, current_user, db)
+
+    # 1. Clean up uploaded documents from disk
+    for doc in (project.documents or []):
+        if doc.storage_path and os.path.exists(doc.storage_path):
+            try:
+                os.remove(doc.storage_path)
+            except Exception as e:
+                logger.warning(f"Failed to delete uploaded doc {doc.storage_path}: {e}")
+
+    # 2. Clean up SOW documents from disk
+    for sow in (project.sow_documents or []):
+        if sow.docx_storage_path and os.path.exists(sow.docx_storage_path):
+            try:
+                os.remove(sow.docx_storage_path)
+            except Exception as e:
+                logger.warning(f"Failed to delete SOW docx {sow.docx_storage_path}: {e}")
+        if sow.pdf_storage_path and os.path.exists(sow.pdf_storage_path):
+            try:
+                os.remove(sow.pdf_storage_path)
+            except Exception as e:
+                logger.warning(f"Failed to delete SOW pdf {sow.pdf_storage_path}: {e}")
+
     db.delete(project)
     db.commit()
+
+    return {"message": "Project deleted successfully", "deleted_id": project_id}
 
 
 @router.get("/stats/dashboard")

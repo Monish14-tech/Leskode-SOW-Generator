@@ -340,7 +340,8 @@ def test_14_leskode_17_section_sow_generation(tmp_path):
             "Deploy an integrated Zoho ecosystem for Shiva Karthikeyaa Steels that eliminates duplicate data entry, enforces pricing and discount discipline, accelerates quote-to-cash turnaround, and provides real-time multi-godown inventory visibility."
         ),
         "training_audience": "Shiva Karthikeyaa Steels's management, sales engineers, accounts, and stores personnel",
-        "total_duration": "8–10 Weeks"
+        "total_duration": "8–10 Weeks",
+        "prepared_by": "Monish"
     }
 
     generate_leskode_sow(sample_content, str(out_file))

@@ -4,7 +4,7 @@ import {
   ShieldAlert, CheckCircle2, Download, RefreshCw, Upload,
   Plus, ChevronRight, AlertTriangle, ArrowLeft, Eye, Edit3, Check, Trash2
 } from 'lucide-react'
-import { api } from '../api'
+import { api, formatApiError } from '../api'
 import type {
   Project, UploadedDoc, ExtractedSection, Requirement,
   ModuleMapping, ScopeTask, AutomationItem, IntegrationItem,
@@ -16,6 +16,7 @@ interface ProjectWorkspaceProps {
   project: Project
   onBack: () => void
   onProjectUpdated: (p: Project) => void
+  onProjectDeleted?: () => void
 }
 
 type TabType =
@@ -33,6 +34,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   project,
   onBack,
   onProjectUpdated,
+  onProjectDeleted,
 }) => {
   const [activeTab, setActiveTab] = useState<TabType>('docs')
   const [loading, setLoading] = useState(false)
@@ -115,16 +117,7 @@ export const ProjectWorkspace: React.FC<ProjectWorkspaceProps> = ({
   }
 
   const showNotice = (text: any, isError = false) => {
-    let msg = text
-    if (typeof text !== 'string') {
-      if (Array.isArray(text)) {
-        msg = text.map((t) => (typeof t === 'string' ? t : (t?.msg || JSON.stringify(t)))).join('; ')
-      } else if (text && typeof text === 'object') {
-        msg = text.msg || text.message || JSON.stringify(text)
-      } else {
-        msg = String(text)
-      }
-    }
+    const msg = formatApiError(text, isError ? 'Operation failed' : 'Operation completed')
     setAlert({ text: msg, isError })
     setTimeout(() => setAlert(null), 5000)
   }
@@ -473,6 +466,110 @@ The objective is to deploy an end-to-end connected Zoho ecosystem connecting cus
     }
   }
 
+  // 11. Delete Project
+  const handleDeleteProject = async () => {
+    if (!window.confirm(`Are you sure you want to delete "${project.project_name}"?\n\nThis will permanently delete all its uploaded documents, requirements, Zoho modules, scope tasks, automations, and generated SOW documents.`)) {
+      return
+    }
+    setActionLoading(true)
+    try {
+      await api.deleteProject(project.id)
+      if (onProjectDeleted) {
+        onProjectDeleted()
+      } else {
+        onBack()
+      }
+    } catch (err: any) {
+      showNotice(err.response?.data?.detail || 'Failed to delete project', true)
+      setActionLoading(false)
+    }
+  }
+
+  // 12. Delete Document
+  const handleDeleteDocument = async (docId: string, filename: string) => {
+    if (!window.confirm(`Are you sure you want to delete the uploaded document "${filename}"?`)) {
+      return
+    }
+    setActionLoading(true)
+    try {
+      await api.deleteDocument(project.id, docId)
+      setDocs((prev) => prev.filter((d) => d.id !== docId))
+      showNotice('Document deleted successfully.')
+    } catch (err: any) {
+      showNotice(err.response?.data?.detail || 'Failed to delete document', true)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // 13. Delete Requirement
+  const handleDeleteRequirement = async (reqId: string, title: string) => {
+    if (!window.confirm(`Are you sure you want to delete requirement "${title}"?`)) {
+      return
+    }
+    setActionLoading(true)
+    try {
+      await api.deleteRequirement(project.id, reqId)
+      setReqs((prev) => prev.filter((r) => r.id !== reqId))
+      showNotice('Requirement deleted.')
+    } catch (err: any) {
+      showNotice(err.response?.data?.detail || 'Failed to delete requirement', true)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // 14. Remove Module
+  const handleRemoveModule = async (mappingId: string, moduleName: string) => {
+    if (!window.confirm(`Are you sure you want to remove the module "${moduleName}" from this project?`)) {
+      return
+    }
+    setActionLoading(true)
+    try {
+      await api.removeModule(project.id, mappingId)
+      setModules((prev) => prev.filter((m) => m.id !== mappingId))
+      showNotice(`Module "${moduleName}" removed.`)
+    } catch (err: any) {
+      showNotice(err.response?.data?.detail || 'Failed to remove module', true)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // 15. Delete Task
+  const handleDeleteTask = async (taskId: string, taskName: string) => {
+    if (!window.confirm(`Are you sure you want to delete task "${taskName}"?`)) {
+      return
+    }
+    setActionLoading(true)
+    try {
+      await api.deleteTask(project.id, taskId)
+      setTasks((prev) => prev.filter((t) => t.id !== taskId))
+      showNotice('Task deleted.')
+    } catch (err: any) {
+      showNotice(err.response?.data?.detail || 'Failed to delete task', true)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  // 16. Delete Automation
+  const handleDeleteAutomation = async (autoId: string, autoName: string) => {
+    if (!window.confirm(`Are you sure you want to delete automation "${autoName}"?`)) {
+      return
+    }
+    setActionLoading(true)
+    try {
+      await api.deleteAutomation(project.id, autoId)
+      setAutomations((prev) => prev.filter((a) => a.id !== autoId))
+      showNotice('Automation deleted.')
+    } catch (err: any) {
+      showNotice(err.response?.data?.detail || 'Failed to delete automation', true)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   // Filtered requirements
   const filteredReqs = reqs.filter((r) => {
     const matchesCat = reqCategoryFilter === 'ALL' || r.category === reqCategoryFilter
@@ -538,6 +635,16 @@ The objective is to deploy an end-to-end connected Zoho ecosystem connecting cus
           >
             <Download className="w-4 h-4" />
             <span>Generate SOW (DOCX)</span>
+          </button>
+
+          <button
+            onClick={handleDeleteProject}
+            disabled={actionLoading}
+            title="Delete this project"
+            className="flex items-center space-x-1.5 px-3 py-2 bg-red-950/40 hover:bg-red-900/60 border border-red-800/60 hover:border-red-600 text-red-400 hover:text-red-200 text-xs font-medium rounded-xl transition-all"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Delete Project</span>
           </button>
         </div>
       </div>
@@ -681,6 +788,14 @@ The objective is to deploy an end-to-end connected Zoho ecosystem connecting cus
                       >
                         <Eye className="w-3.5 h-3.5 text-slate-400" />
                         <span>View Sections</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteDocument(d.id, d.original_filename)}
+                        disabled={actionLoading}
+                        title="Delete document"
+                        className="p-1.5 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-400 hover:text-red-200 border border-red-800/50 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -838,6 +953,14 @@ The objective is to deploy an end-to-end connected Zoho ecosystem connecting cus
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
+                          <button
+                            onClick={() => handleDeleteRequirement(r.id, r.title)}
+                            disabled={actionLoading}
+                            title="Delete Requirement"
+                            className="p-1 rounded bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-800/50 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -922,16 +1045,26 @@ The objective is to deploy an end-to-end connected Zoho ecosystem connecting cus
                           )}
                         </div>
 
-                        <button
-                          onClick={() => handleToggleModuleApprove(m.id, m.is_approved)}
-                          className={`text-xs px-2.5 py-1 rounded-lg font-medium border transition-colors ${
-                            m.is_approved
-                              ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
-                              : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
-                          }`}
-                        >
-                          {m.is_approved ? 'Approved for SOW' : 'Click to Approve'}
-                        </button>
+                        <div className="flex items-center space-x-1.5">
+                          <button
+                            onClick={() => handleToggleModuleApprove(m.id, m.is_approved)}
+                            className={`text-xs px-2.5 py-1 rounded-lg font-medium border transition-colors ${
+                              m.is_approved
+                                ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                                : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white'
+                            }`}
+                          >
+                            {m.is_approved ? 'Approved for SOW' : 'Click to Approve'}
+                          </button>
+                          <button
+                            onClick={() => handleRemoveModule(m.id, m.module_name)}
+                            disabled={actionLoading}
+                            title="Remove module"
+                            className="p-1 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-400 hover:text-red-200 border border-red-800/50 transition-colors"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
 
                       <div className="mt-3 space-y-2 text-xs">
@@ -1073,6 +1206,17 @@ The objective is to deploy an end-to-end connected Zoho ecosystem connecting cus
                           </div>
                         )}
                       </div>
+
+                      <div className="shrink-0">
+                        <button
+                          onClick={() => handleDeleteTask(t.id, t.name)}
+                          disabled={actionLoading}
+                          title="Delete task"
+                          className="p-1.5 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-400 hover:text-red-200 border border-red-800/50 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1125,6 +1269,17 @@ The objective is to deploy an end-to-end connected Zoho ecosystem connecting cus
                         </div>
                         <h4 className="text-sm font-bold text-white mt-1.5">{a.name}</h4>
                         <p className="text-xs text-slate-400">{a.business_objective}</p>
+                      </div>
+
+                      <div className="shrink-0">
+                        <button
+                          onClick={() => handleDeleteAutomation(a.id, a.name)}
+                          disabled={actionLoading}
+                          title="Delete automation"
+                          className="p-1.5 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-400 hover:text-red-200 border border-red-800/50 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
 

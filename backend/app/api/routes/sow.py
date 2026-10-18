@@ -16,7 +16,8 @@ from app.db.models import (
     UserProfile, SowDocument, SowTemplateVersion, Project, ProjectStatus,
     Requirement, ScopeTask, AutomationItem, IntegrationItem,
     ClarificationQuestion, Assumption, Exclusion, Risk,
-    ProjectModuleMapping, SowStatus, TemplateStatus, ClarificationStatus
+    ProjectModuleMapping, SowStatus, TemplateStatus, ClarificationStatus,
+    RequirementStatus
 )
 from app.document.generator import generate_sow_docx, GenerationError
 from app.document.leskode_template import generate_leskode_sow

@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { X, FolderPlus, Building, Briefcase, Layers, FileText, User } from 'lucide-react'
-import { api } from '../api'
+import { api, formatApiError } from '../api'
 import type { Project } from '../types'
 
 interface NewProjectModalProps {
@@ -45,7 +45,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
       setZohoEdition('')
       setDescription('')
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to create project.')
+      setError(formatApiError(err, 'Failed to create project.'))
     } finally {
       setLoading(false)
     }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { X, Upload, LayoutTemplate, CheckCircle2, AlertTriangle, FileCode, Trash2 } from 'lucide-react'
-import { api } from '../api'
+import { api, formatApiError } from '../api'
 import type { SowTemplateItem } from '../types'
 
 interface TemplateManagerModalProps {
@@ -47,7 +47,7 @@ export const TemplateManagerModal: React.FC<TemplateManagerModalProps> = ({
       setDescription('')
       loadTemplates()
     } catch (err: any) {
-      setMsg({ text: err.response?.data?.detail || 'Upload failed.', isError: true })
+      setMsg({ text: formatApiError(err, 'Upload failed.'), isError: true })
     } finally {
       setLoading(false)
     }
@@ -61,7 +61,7 @@ export const TemplateManagerModal: React.FC<TemplateManagerModalProps> = ({
       setMsg({ text: `"${templateName}" is now the active master template!` })
       await loadTemplates()
     } catch (err: any) {
-      setMsg({ text: err.response?.data?.detail || 'Failed to activate template.', isError: true })
+      setMsg({ text: formatApiError(err, 'Failed to activate template.'), isError: true })
     } finally {
       setLoading(false)
     }
@@ -78,7 +78,7 @@ export const TemplateManagerModal: React.FC<TemplateManagerModalProps> = ({
       setMsg({ text: `Master template "${templateName}" deleted successfully.` })
       await loadTemplates()
     } catch (err: any) {
-      setMsg({ text: err.response?.data?.detail || 'Failed to delete template.', isError: true })
+      setMsg({ text: formatApiError(err, 'Failed to delete template.'), isError: true })
     } finally {
       setLoading(false)
     }
