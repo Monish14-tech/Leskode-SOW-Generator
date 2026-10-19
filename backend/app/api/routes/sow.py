@@ -352,7 +352,7 @@ def generate_sow(
     # Resolve template path safely if version exists
     tpl_path = None
     if version and version.storage_path:
-        backend_base = Path(__file__).resolve().parent.parent.parent
+        backend_base = Path(__file__).resolve().parent.parent.parent.parent
         candidates = [
             Path(version.storage_path),
             backend_base / version.storage_path,

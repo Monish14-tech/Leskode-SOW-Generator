@@ -98,7 +98,7 @@ async def upload_template(
     ext = Path(file.filename).suffix.lower()
 
     # Save file to backend templates directory with absolute path
-    backend_base = Path(__file__).resolve().parent.parent.parent
+    backend_base = Path(__file__).resolve().parent.parent.parent.parent
     templates_dir = backend_base / "templates"
     templates_dir.mkdir(exist_ok=True)
     safe_name = f"template_{uuid.uuid4()}{ext}"
@@ -154,12 +154,18 @@ async def upload_template(
         placeholder_map[f"{{{{{ph}}}}}"] = ph.lower()
 
     # Archive previous active versions across org so new upload takes effect immediately
-    db.query(SowTemplateVersion).join(
-        SowTemplate, SowTemplateVersion.template_id == SowTemplate.id
-    ).filter(
-        SowTemplate.organization_id == current_user.organization_id,
-        SowTemplateVersion.status == TemplateStatus.ACTIVE,
-    ).update({"status": TemplateStatus.ARCHIVED}, synchronize_session=False)
+    old_active = (
+        db.query(SowTemplateVersion)
+        .join(SowTemplate, SowTemplateVersion.template_id == SowTemplate.id)
+        .filter(
+            SowTemplate.organization_id == current_user.organization_id,
+            SowTemplateVersion.status == TemplateStatus.ACTIVE,
+        )
+        .all()
+    )
+    for oav in old_active:
+        oav.status = TemplateStatus.ARCHIVED
+    db.flush()
 
     version = SowTemplateVersion(
         template_id=template.id,
@@ -202,13 +208,19 @@ def publish_template_version(
         raise HTTPException(403, "Access denied.")
 
     # Archive other active versions across org
-    db.query(SowTemplateVersion).join(
-        SowTemplate, SowTemplateVersion.template_id == SowTemplate.id
-    ).filter(
-        SowTemplate.organization_id == current_user.organization_id,
-        SowTemplateVersion.id != version_id,
-        SowTemplateVersion.status == TemplateStatus.ACTIVE,
-    ).update({"status": TemplateStatus.ARCHIVED}, synchronize_session=False)
+    other_active = (
+        db.query(SowTemplateVersion)
+        .join(SowTemplate, SowTemplateVersion.template_id == SowTemplate.id)
+        .filter(
+            SowTemplate.organization_id == current_user.organization_id,
+            SowTemplateVersion.id != version_id,
+            SowTemplateVersion.status == TemplateStatus.ACTIVE,
+        )
+        .all()
+    )
+    for oav in other_active:
+        oav.status = TemplateStatus.ARCHIVED
+    db.flush()
 
     version.status = TemplateStatus.ACTIVE
     version.published_by = current_user.id
@@ -287,7 +299,7 @@ def delete_template(
         )
 
     # Delete physical files
-    backend_base = Path(__file__).resolve().parent.parent.parent
+    backend_base = Path(__file__).resolve().parent.parent.parent.parent
     for version in (template.versions or []):
         if version.storage_path:
             candidates = [

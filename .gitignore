@@ -44,6 +44,7 @@ backend/uploads/*
 !backend/uploads/.gitkeep
 backend/sow_outputs/*
 !backend/sow_outputs/.gitkeep
+backend/templates/template_*
 backend/*_verified.docx
 backend/*.docx
 
