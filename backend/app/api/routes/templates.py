@@ -4,7 +4,7 @@ import uuid
 import logging
 from pathlib import Path
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
@@ -73,29 +73,35 @@ def list_templates(
 
 @router.post("/upload", status_code=201)
 async def upload_template(
-    name: str,
     file: UploadFile = File(...),
-    description: Optional[str] = None,
-    change_summary: Optional[str] = None,
+    name: Optional[str] = Form(None),
+    description: Optional[str] = Form(None),
+    change_summary: Optional[str] = Form(None),
     current_user: UserProfile = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Upload a master SOW template DOCX file."""
-    ext = Path(file.filename).suffix.lower()
-    if ext != ".docx":
-        raise HTTPException(400, "Only DOCX template files are supported.")
+    """Upload a master SOW template or sample SOW in any file format."""
+    if not file or not file.filename:
+        raise HTTPException(400, "No file uploaded.")
 
     content = await file.read()
     if len(content) == 0:
         raise HTTPException(400, "Template file is empty.")
-    if len(content) > 20 * 1024 * 1024:
-        raise HTTPException(413, "Template file must be under 20MB.")
+    if len(content) > 50 * 1024 * 1024:
+        raise HTTPException(413, "Template file must be under 50MB.")
+
+    # Clean template name or default to file stem
+    clean_name = (name or "").strip()
+    if not clean_name:
+        clean_name = Path(file.filename).stem or "Master SOW Template"
+
+    ext = Path(file.filename).suffix.lower()
 
     # Save file to backend templates directory with absolute path
     backend_base = Path(__file__).resolve().parent.parent.parent
     templates_dir = backend_base / "templates"
     templates_dir.mkdir(exist_ok=True)
-    safe_name = f"template_{uuid.uuid4()}.docx"
+    safe_name = f"template_{uuid.uuid4()}{ext}"
     save_path = templates_dir / safe_name
     with open(save_path, "wb") as f:
         f.write(content)
@@ -103,13 +109,13 @@ async def upload_template(
     # Create or find template record
     template = db.query(SowTemplate).filter(
         SowTemplate.organization_id == current_user.organization_id,
-        SowTemplate.name == name,
+        SowTemplate.name == clean_name,
     ).first()
 
     if not template:
         template = SowTemplate(
             organization_id=current_user.organization_id,
-            name=name,
+            name=clean_name,
             description=description,
         )
         db.add(template)
@@ -121,11 +127,26 @@ async def upload_template(
     ).count()
     version_number = f"v{existing_count + 1}.0"
 
-    # Extract template structure
-    try:
-        structure = extract_template_structure(str(save_path))
-    except ExtractionError as e:
-        structure = {"error": str(e)}
+    # Extract template structure (supports docx, pdf, txt, or any format)
+    structure = {"placeholders": [], "headings": [], "tables": []}
+    if ext == ".docx":
+        try:
+            structure = extract_template_structure(str(save_path))
+        except Exception as e:
+            logger.warning(f"Template docx structure extraction note: {e}")
+            structure = {"placeholders": [], "headings": [], "tables": [], "note": str(e)}
+    elif ext == ".pdf":
+        try:
+            from app.document.extractor import extract_pdf
+            sections, _ = extract_pdf(str(save_path))
+            structure = {
+                "headings": [{"text": s.get("heading") or f"Section {i+1}", "level": 1} for i, s in enumerate(sections) if s.get("heading")],
+                "placeholders": [],
+                "tables": [],
+            }
+        except Exception as e:
+            logger.warning(f"Template pdf structure extraction note: {e}")
+            structure = {"placeholders": [], "headings": [], "tables": [], "note": str(e)}
 
     # Build default placeholder map from discovered placeholders
     placeholder_map = {}
@@ -158,7 +179,7 @@ async def upload_template(
     db.refresh(version)
     db.refresh(template)
 
-    logger.info(f"Master template uploaded and activated: {name} v{version_number} at {save_path}")
+    logger.info(f"Master template uploaded and activated: {clean_name} v{version_number} at {save_path}")
     return {"template": _template_dict(template), "version": _version_dict(version)}
 
 

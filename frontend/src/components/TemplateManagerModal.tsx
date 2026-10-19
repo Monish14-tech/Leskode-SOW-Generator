@@ -40,8 +40,9 @@ export const TemplateManagerModal: React.FC<TemplateManagerModalProps> = ({
     setLoading(true)
     setMsg(null)
     try {
-      const res = await api.uploadTemplate(file, name || file.name.replace('.docx', ''), description)
-      setMsg({ text: `Template uploaded! Detected ${res.placeholders?.length || 0} placeholders.` })
+      const cleanTemplateName = name?.trim() || file.name.replace(/\.[^/.]+$/, '')
+      const res = await api.uploadTemplate(file, cleanTemplateName, description)
+      setMsg({ text: `Template uploaded successfully! Detected ${res.placeholders?.length || 0} placeholders.` })
       setFile(null)
       setName('')
       setDescription('')
@@ -129,14 +130,14 @@ export const TemplateManagerModal: React.FC<TemplateManagerModalProps> = ({
             <span>Upload Master SOW Template or Sample SOW</span>
           </h3>
           <p className="text-[11px] text-slate-400 mb-3">
-            Upload any .docx SOW. Logos, margins, headers, footers, module tables, and typography are 100% cloned for new projects.
+            Upload any sample SOW or template file (DOCX, PDF, etc.). Logos, margins, headers, footers, module tables, and typography are cloned for new projects.
           </p>
 
           <form onSubmit={handleUpload} className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-medium text-slate-400 mb-1">
-                  Template Name
+                  Template Name <span className="text-slate-500">(Optional)</span>
                 </label>
                 <input
                   type="text"
@@ -149,11 +150,10 @@ export const TemplateManagerModal: React.FC<TemplateManagerModalProps> = ({
 
               <div>
                 <label className="block text-[11px] font-medium text-slate-400 mb-1">
-                  Select .docx Template or Sample SOW
+                  Select Template or Sample SOW
                 </label>
                 <input
                   type="file"
-                  accept=".docx"
                   required
                   onChange={(e) => setFile(e.target.files?.[0] || null)}
                   className="w-full text-xs text-slate-300 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer"

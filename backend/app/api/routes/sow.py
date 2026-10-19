@@ -365,7 +365,7 @@ def generate_sow(
                 break
 
     # If active master template DOCX exists, populate it directly to replicate exact logos, layout, and styling
-    if tpl_path:
+    if tpl_path and str(tpl_path).lower().endswith(".docx"):
         try:
             logger.info(f"Generating SOW from master template: {tpl_path} ({version.original_filename if version else 'custom'})")
             gen_result = generate_sow_docx(
