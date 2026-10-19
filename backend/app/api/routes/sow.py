@@ -364,36 +364,18 @@ def generate_sow(
                 tpl_path = c
                 break
 
-    # If active master template DOCX exists, populate it directly to replicate exact logos, layout, and styling
-    if tpl_path and str(tpl_path).lower().endswith(".docx"):
-        try:
-            logger.info(f"Generating SOW from master template: {tpl_path} ({version.original_filename if version else 'custom'})")
-            gen_result = generate_sow_docx(
-                template_path=str(tpl_path),
-                output_path=str(output_path),
-                content=content,
-                placeholder_map=version.placeholder_map or {},
-            )
-        except Exception as e:
-            logger.warning(f"Master template generation failed: {e}. Falling back to official Leskode generator.")
-            generate_leskode_sow(content, str(output_path))
-            gen_result = {
-                "status": "success",
-                "output_path": str(output_path),
-                "file_size_bytes": os.path.getsize(str(output_path)),
-                "unresolved_placeholders": [],
-                "warnings": [f"Master template note ({e}), generated using official Leskode SOW engine."],
-            }
-    else:
-        # Generate with the official Leskode 17-section SOW Flow Template
-        generate_leskode_sow(content, str(output_path))
-        gen_result = {
-            "status": "success",
-            "output_path": str(output_path),
-            "file_size_bytes": os.path.getsize(str(output_path)),
-            "unresolved_placeholders": [],
-            "warnings": [],
-        }
+    # Generate authentic 17-section SOW populated with the actual project content,
+    # while replicating logos, headers, footers, and margins from the active master template
+    logger.info(f"Generating SOW for project '{project.project_name}' (template: {tpl_path})")
+    generate_leskode_sow(content, str(output_path), template_path=str(tpl_path) if tpl_path else None)
+    file_size = os.path.getsize(str(output_path))
+    gen_result = {
+        "status": "success",
+        "output_path": str(output_path),
+        "file_size_bytes": file_size,
+        "unresolved_placeholders": [],
+        "warnings": [],
+    }
 
     # Save SOW document record
     sow_doc = SowDocument(

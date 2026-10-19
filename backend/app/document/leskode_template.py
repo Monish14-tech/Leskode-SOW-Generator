@@ -210,45 +210,114 @@ def format_table_cells(table, zebra=True):
                     run.font.color.rgb = COLOR_DARK
 
 
-def generate_leskode_sow(content: Dict[str, Any], output_path: str) -> str:
+def _extract_logo_from_template(template_path: Optional[str]) -> Optional[str]:
+    """
+    Extract embedded company logo from master template DOCX.
+    Looks inside word/media/ for image files (png/jpg/jpeg).
+    """
+    if not template_path or not os.path.exists(template_path):
+        return None
+    try:
+        import zipfile
+        import tempfile
+        with zipfile.ZipFile(template_path) as z:
+            media_files = [
+                f for f in z.namelist()
+                if f.startswith('word/media/') and any(f.lower().endswith(ext) for ext in ['.png', '.jpg', '.jpeg'])
+            ]
+            if not media_files:
+                return None
+
+            # Prioritize non-fig images (logo/branding)
+            non_figs = [m for m in media_files if not any(f'fig0{i}' in m.lower() for i in range(10))]
+            if non_figs:
+                # Pick largest non-fig image (branding logo)
+                best_logo = max(non_figs, key=lambda f: z.getinfo(f).file_size)
+            else:
+                best_logo = media_files[0]
+
+            data = z.read(best_logo)
+            ext = Path(best_logo).suffix or ".png"
+            temp_dir = Path(tempfile.gettempdir()) / "scopepilot_logos"
+            temp_dir.mkdir(exist_ok=True)
+            temp_logo_path = temp_dir / f"extracted_logo_{Path(template_path).stem[:20]}{ext}"
+            with open(temp_logo_path, "wb") as f:
+                f.write(data)
+            return str(temp_logo_path)
+    except Exception as e:
+        logger.warning(f"Failed to extract logo from template {template_path}: {e}")
+        return None
+
+
+def generate_leskode_sow(content: Dict[str, Any], output_path: str, template_path: Optional[str] = None) -> str:
     """
     Generate an authentic, complete Leskode SOW document from structured project content,
     strictly adhering to the 4-page SOW Flow Template and 23-page reference SOW.
+    If template_path is provided, extracts and replicates its logo, header, footer, and styling.
     """
     doc = Document()
 
-    # Set page margins: 0.8 inch
-    for section in doc.sections:
-        section.top_margin = Inches(0.8)
-        section.bottom_margin = Inches(0.8)
-        section.left_margin = Inches(0.8)
-        section.right_margin = Inches(0.8)
+    # Replicate page margins from template if available, else standard 0.8 inch
+    top_m = Inches(0.8)
+    bot_m = Inches(0.8)
+    left_m = Inches(0.8)
+    right_m = Inches(0.8)
 
-        # Header
-        header_p = section.header.paragraphs[0]
-        header_p.text = "Leskode | Zoho Advanced Partner"
-        header_p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
-        header_p.style.font.size = Pt(8.5)
-        header_p.style.font.color.rgb = COLOR_MUTED
-
-        # Footer
-        footer_p = section.footer.paragraphs[0]
-        footer_p.text = "Confidential — Leskode | Prepared by Monish | Contact: +91 9500424307"
-        footer_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        footer_p.style.font.size = Pt(8.5)
-        footer_p.style.font.color.rgb = COLOR_MUTED
+    if template_path and os.path.exists(template_path):
+        try:
+            tpl_doc = Document(template_path)
+            if tpl_doc.sections:
+                ts = tpl_doc.sections[0]
+                if ts.top_margin: top_m = ts.top_margin
+                if ts.bottom_margin: bot_m = ts.bottom_margin
+                if ts.left_margin: left_m = ts.left_margin
+                if ts.right_margin: right_m = ts.right_margin
+        except Exception:
+            pass
 
     client_name = content.get("client_name", "Valued Client")
     project_name = content.get("project_name", "Zoho Implementation")
-    solution_title = content.get("solution_title", "Zoho Business Management Implementation")
+    solution_title = content.get("solution_title", f"Zoho Business Management Implementation for {client_name}")
     app_line = content.get("application_line", "Zoho One (CRM, Books, Inventory, Desk, Flow, Analytics)")
     business_one_liner = content.get("business_one_liner", "Enterprise Operations & Business Automation")
     version_date = content.get("version_date", "Version 1.0 | October 2026")
     prepared_by = content.get("prepared_by") or "Leskode Solutions Team"
     contact_phone = "+91 9500424307"
 
+    # Set page margins & header/footer
+    for section in doc.sections:
+        section.top_margin = top_m
+        section.bottom_margin = bot_m
+        section.left_margin = left_m
+        section.right_margin = right_m
+
+        # Header
+        header_p = section.header.paragraphs[0]
+        header_p.text = f"Leskode | Zoho Advanced Partner  —  {client_name}"
+        header_p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        header_p.style.font.size = Pt(8.5)
+        header_p.style.font.color.rgb = COLOR_MUTED
+
+        # Footer
+        footer_p = section.footer.paragraphs[0]
+        footer_p.text = f"Confidential — Leskode | Prepared by {prepared_by} | Contact: {contact_phone}"
+        footer_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        footer_p.style.font.size = Pt(8.5)
+        footer_p.style.font.color.rgb = COLOR_MUTED
+
     # ─── SECTION 1: COVER PAGE ──────────────────────────────────────────────────
-    doc.add_paragraph().paragraph_format.space_before = Pt(70)
+    logo_path = _extract_logo_from_template(template_path)
+    if logo_path and os.path.exists(logo_path):
+        logo_p = doc.add_paragraph()
+        logo_p.paragraph_format.space_before = Pt(30)
+        logo_p.paragraph_format.space_after = Pt(20)
+        r_logo = logo_p.add_run()
+        try:
+            r_logo.add_picture(logo_path, width=Inches(2.4))
+        except Exception:
+            pass
+    else:
+        doc.add_paragraph().paragraph_format.space_before = Pt(60)
 
     title_p = doc.add_paragraph()
     title_p.paragraph_format.space_after = Pt(8)
